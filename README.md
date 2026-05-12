@@ -36,6 +36,16 @@ A powerful suite of Python scripts designed to bridge the gap between your onlin
     python3 -m pip install -r requirements.txt
     ```
 
+## Desktop App Preview
+
+The first desktop milestone uses `pywebview` to load a local dashboard and call Python services directly.
+
+```bash
+uv run python desktop_app.py
+```
+
+The dashboard reads the existing `personal/` files during development. Use **Choose CSV** and **Process Library** to enrich an exported library CSV into `music_library_with_genres.csv`, then generate `taste_profile.json` and `personal_library.json`.
+
 ---
 
 ## 🔄 The Discovery Workflow

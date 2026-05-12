@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daily Discovery</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <strong>Daily Discovery</strong>
+            <span>Desktop</span>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-item active" type="button">Dashboard</button>
+          <button class="nav-item" type="button" disabled>Library</button>
+          <button class="nav-item" type="button" disabled>Taste Profile</button>
+          <button class="nav-item" type="button" disabled>Downloads</button>
+          <button class="nav-item" type="button" disabled>Settings</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span>v0.1.0</span>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">Desktop milestone</p>
+            <h1>Dashboard</h1>
+          </div>
+          <div class="actions">
+            <button id="choose-library" class="button secondary" type="button">Choose CSV</button>
+            <button id="process-library" class="button primary" type="button">Process Library</button>
+          </div>
+        </header>
+
+        <section id="status" class="status-line" aria-live="polite">Loading dashboard data.</section>
+
+        <section class="stat-grid" aria-label="Library summary">
+          <article class="stat-cell">
+            <span>Library Size</span>
+            <strong id="library-size">0</strong>
+          </article>
+          <article class="stat-cell">
+            <span>Top Genre</span>
+            <strong id="top-genre">Not available</strong>
+          </article>
+          <article class="stat-cell">
+            <span>Artists</span>
+            <strong id="artist-count">0</strong>
+          </article>
+          <article class="stat-cell">
+            <span>Pending Downloads</span>
+            <strong id="pending-downloads">0</strong>
+          </article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <h2>Top Genres</h2>
+              <span id="genre-count">0 genres</span>
+            </div>
+            <div id="top-genres" class="bar-list empty">No taste profile found.</div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <h2>Top Artists</h2>
+              <span id="artist-total">0 artists</span>
+            </div>
+            <div id="top-artists" class="bar-list empty">No artist data found.</div>
+          </article>
+
+          <article class="panel wide">
+            <div class="panel-header">
+              <h2>Recent Activity</h2>
+              <span id="data-dir"></span>
+            </div>
+            <div id="recent-activity" class="activity-list empty">No generated files found.</div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <h2>Discovery Batches</h2>
+              <span id="batch-count">0 batches</span>
+            </div>
+            <div id="discovery-batches" class="activity-list empty">No discovery CSV files found.</div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+
