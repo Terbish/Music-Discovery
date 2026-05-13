@@ -82,6 +82,9 @@ const elements = {
   outputPath: document.querySelector("#output-path"),
   audioOutputPath: document.querySelector("#audio-output-path"),
   audioFormat: document.querySelector("#audio-format"),
+  youtubeCookiesPath: document.querySelector("#youtube-cookies-path"),
+  browseYoutubeCookiesPath: document.querySelector("#browse-youtube-cookies-path"),
+  testYoutubeCookies: document.querySelector("#test-youtube-cookies"),
   batchSize: document.querySelector("#batch-size"),
   launchAtStartup: document.querySelector("#launch-at-startup"),
   minimizeToTray: document.querySelector("#minimize-to-tray"),
@@ -126,6 +129,8 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.downloadSelectedSource.addEventListener("click", downloadSelectedSource);
   elements.saveSettings.addEventListener("click", saveSettings);
   elements.resetSettings.addEventListener("click", loadSettings);
+  elements.browseYoutubeCookiesPath.addEventListener("click", browseYoutubeCookiesPath);
+  elements.testYoutubeCookies.addEventListener("click", testYoutubeCookies);
   elements.settingsForm.addEventListener("submit", (event) => event.preventDefault());
   elements.settingsForm.addEventListener("input", markSettingsDirty);
   elements.browseLibraryPath.addEventListener("click", browseLibraryPath);
@@ -358,6 +363,19 @@ async function browseDirectory(input) {
   }
 }
 
+async function browseYoutubeCookiesPath() {
+  const response = await callApi("select_file", ["Cookies files (*.txt;*.cookies)", "Text files (*.txt)", "All files (*.*)"]);
+  if (!response.ok) {
+    setSettingsStatus(response.error, "error");
+    return;
+  }
+
+  if (response.data.path) {
+    elements.youtubeCookiesPath.value = response.data.path;
+    markSettingsDirty();
+  }
+}
+
 function setProgressStatus(detail) {
   const labels = {
     enriching_genres: "Enriching genres",
@@ -474,6 +492,7 @@ function renderSettings(settings) {
   elements.outputPath.value = settings.output_path || "";
   elements.audioOutputPath.value = settings.audio_output_path || "";
   elements.audioFormat.value = settings.audio_format || "mp3";
+  elements.youtubeCookiesPath.value = settings.youtube_cookies_path || "";
   elements.batchSize.value = settings.batch_size || 20;
   elements.launchAtStartup.checked = Boolean(settings.launch_at_startup);
   elements.minimizeToTray.checked = Boolean(settings.minimize_to_tray);
@@ -761,6 +780,34 @@ async function downloadSelectedSource() {
   setDownloadsStatus(response.data.message, "success");
 }
 
+async function testYoutubeCookies() {
+  const payload = readSettingsForm();
+  if (!payload) {
+    return;
+  }
+
+  setSettingsStatus("Testing YouTube cookies.");
+  elements.testYoutubeCookies.disabled = true;
+  const response = await callApi("test_youtube_cookies", payload);
+  elements.testYoutubeCookies.disabled = false;
+
+  if (!response.ok) {
+    setSettingsStatus(response.error, "error");
+    return;
+  }
+
+  const result = response.data;
+  if (result.ok) {
+    setSettingsStatus(
+      `${result.message} ${formatNumber(result.auth_cookie_count)} auth cookies and ${formatNumber(result.youtube_cookie_count)} YouTube cookies found.`,
+      "success",
+    );
+    return;
+  }
+
+  setSettingsStatus(result.message, "error");
+}
+
 function getSelectedDownloadTrack() {
   return downloadTracks.find((track) => track.id === selectedDownloadTrackId) || null;
 }
@@ -829,6 +876,7 @@ function readSettingsForm() {
     output_path: elements.outputPath.value.trim(),
     audio_output_path: elements.audioOutputPath.value.trim(),
     audio_format: elements.audioFormat.value,
+    youtube_cookies_path: elements.youtubeCookiesPath.value.trim(),
     batch_size: batchSize,
     launch_at_startup: elements.launchAtStartup.checked,
     minimize_to_tray: elements.minimizeToTray.checked,

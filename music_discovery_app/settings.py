@@ -19,6 +19,7 @@ class AppSettings:
     output_path: str = str(DEV_PERSONAL_DIR / "discovery")
     audio_output_path: str = str(DEV_PERSONAL_DIR / "audio_output")
     audio_format: str = "mp3"
+    youtube_cookies_path: str = ""
     batch_size: int = 20
     launch_at_startup: bool = False
     minimize_to_tray: bool = False

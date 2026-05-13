@@ -14,10 +14,11 @@ from music_discovery_app.download_service import (
     read_download_queue,
     search_queue_sources,
     search_youtube_sources,
+    test_youtube_cookies as check_youtube_cookies,
 )
 from music_discovery_app.genre_service import GenreEnrichmentError, enrich_library, is_enriched_csv
 from music_discovery_app.library_service import LibraryProcessingError, process_library
-from music_discovery_app.settings import load_settings, resolve_data_dir, save_settings
+from music_discovery_app.settings import AppSettings, load_settings, resolve_data_dir, save_settings
 
 
 class DesktopApi:
@@ -91,11 +92,16 @@ class DesktopApi:
         settings = save_settings(payload)
         return _ok(asdict(settings))
 
-    def select_file(self, file_types: tuple[str, ...] | None = None) -> dict[str, Any]:
+    def test_youtube_cookies(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        settings = _settings_from_payload(payload)
+        return _ok(check_youtube_cookies(settings))
+
+    def select_file(self, file_types: list[str] | tuple[str, ...] | None = None) -> dict[str, Any]:
         import webview
 
         window = webview.active_window()
-        selected = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types or ("CSV files (*.csv)", "All files (*.*)"))
+        types = tuple(file_types) if file_types else ("CSV files (*.csv)", "All files (*.*)")
+        selected = window.create_file_dialog(webview.OPEN_DIALOG, file_types=types)
         return _ok({"path": selected[0] if selected else None})
 
     def select_directory(self) -> dict[str, Any]:
@@ -172,3 +178,10 @@ def _ok(data: Any) -> dict[str, Any]:
 
 def _error(message: str) -> dict[str, Any]:
     return {"ok": False, "error": message}
+
+
+def _settings_from_payload(payload: dict[str, Any] | None = None) -> AppSettings:
+    data = asdict(load_settings())
+    if payload:
+        data.update({key: value for key, value in payload.items() if key in data})
+    return AppSettings(**data)

@@ -1,7 +1,9 @@
 import csv
 import hashlib
+import http.cookiejar
 import json
 import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -16,6 +18,18 @@ class DownloadServiceError(Exception):
 
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+YOUTUBE_AUTH_COOKIE_NAMES = {
+    "SID",
+    "HSID",
+    "SSID",
+    "APISID",
+    "SAPISID",
+    "__Secure-1PAPISID",
+    "__Secure-3PAPISID",
+    "__Secure-1PSID",
+    "__Secure-3PSID",
+    "LOGIN_INFO",
+}
 
 
 def read_download_queue(settings: AppSettings | None = None) -> dict[str, Any]:
@@ -78,10 +92,16 @@ def create_library_download_queue(settings: AppSettings | None = None) -> dict[s
     }
 
 
-def search_youtube_sources(track: dict[str, Any], limit: int = 8) -> dict[str, Any]:
+def search_youtube_sources(
+    track: dict[str, Any],
+    limit: int = 8,
+    settings: AppSettings | None = None,
+    cookiefile: str | None = None,
+) -> dict[str, Any]:
     if yt_dlp is None:
         raise DownloadServiceError("yt-dlp is not installed.")
 
+    current = settings or load_settings()
     title = str(track.get("title") or "").strip()
     artist = str(track.get("artist") or "").strip()
     if not title or not artist:
@@ -94,6 +114,9 @@ def search_youtube_sources(track: dict[str, Any], limit: int = 8) -> dict[str, A
         "no_warnings": True,
         "default_search": "ytsearch",
     }
+    source_cookiefile = cookiefile or prepare_youtube_cookiefile(current, require=False)
+    if source_cookiefile:
+        opts["cookiefile"] = source_cookiefile
 
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -118,8 +141,10 @@ def search_queue_sources(
     progress_callback: ProgressCallback | None = None,
     settings: AppSettings | None = None,
 ) -> dict[str, Any]:
+    current = settings or load_settings()
     results = []
     total = len(tracks)
+    cookiefile = prepare_youtube_cookiefile(current, require=False) if tracks else None
     _emit(progress_callback, "started", current=0, total=total, message="Searching sources")
     for index, track in enumerate(tracks, 1):
         track_id = str(track.get("id") or "")
@@ -131,8 +156,8 @@ def search_queue_sources(
             message=f"Searching {track.get('artist', '')} - {track.get('title', '')}".strip(" -"),
         )
         try:
-            data = search_youtube_sources(track, limit)
-            save_track_sources(track, data["candidates"], data["query"], settings=settings)
+            data = search_youtube_sources(track, limit, settings=current, cookiefile=cookiefile)
+            save_track_sources(track, data["candidates"], data["query"], settings=current)
             results.append(
                 {
                     "ok": True,
@@ -174,6 +199,7 @@ def download_best_sources(
     current = settings or load_settings()
     total = len(tracks)
     results = []
+    cookiefile = prepare_youtube_cookiefile(current, require=False) if tracks else None
     _emit(progress_callback, "started", current=0, total=total, message="Downloading best sources")
 
     for index, track in enumerate(tracks, 1):
@@ -181,7 +207,7 @@ def download_best_sources(
             candidates = list(track.get("candidates") or [])
             query = str(track.get("source_query") or "")
             if not candidates:
-                data = search_youtube_sources(track, limit)
+                data = search_youtube_sources(track, limit, settings=current, cookiefile=cookiefile)
                 candidates = data["candidates"]
                 query = data["query"]
                 save_track_sources(track, candidates, query, settings=current)
@@ -255,7 +281,13 @@ def download_selected_source(
         "artist": artist,
         "album": track.get("album") or "",
     }
-    ok = download_audio_from_url(url, output_path, fmt=fmt, metadata=metadata)
+    ok = download_audio_from_url(
+        url,
+        output_path,
+        fmt=fmt,
+        metadata=metadata,
+        cookiefile=prepare_youtube_cookiefile(current, require=False),
+    )
     if not ok:
         raise DownloadServiceError("Download or audio conversion failed.")
 
@@ -319,6 +351,67 @@ def save_downloaded_source(
         },
     }
     _write_personal_library(library_path, library)
+
+
+def test_youtube_cookies(settings: AppSettings | None = None) -> dict[str, Any]:
+    if yt_dlp is None:
+        return {
+            "ok": False,
+            "path": "",
+            "cookie_count": 0,
+            "youtube_cookie_count": 0,
+            "message": "yt-dlp is not installed.",
+        }
+
+    current = settings or load_settings()
+    try:
+        cookiefile = resolve_youtube_cookiefile(current, require=True)
+        result = _inspect_cookiefile(cookiefile)
+    except DownloadServiceError as exc:
+        return {
+            "ok": False,
+            "path": str(current.youtube_cookies_path or ""),
+            "cookie_count": 0,
+            "youtube_cookie_count": 0,
+            "message": str(exc),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "path": str(current.youtube_cookies_path or ""),
+            "cookie_count": 0,
+            "youtube_cookie_count": 0,
+            "message": f"Could not load YouTube cookies file: {exc}",
+        }
+
+    if result["auth_cookie_count"] >= 4:
+        return {
+            "ok": True,
+            "path": cookiefile,
+            "cookie_count": result["cookie_count"],
+            "youtube_cookie_count": result["youtube_cookie_count"],
+            "auth_cookie_count": result["auth_cookie_count"],
+            "message": "Loaded YouTube cookies file.",
+        }
+
+    if result["youtube_cookie_count"]:
+        return {
+            "ok": False,
+            "path": cookiefile,
+            "cookie_count": result["cookie_count"],
+            "youtube_cookie_count": result["youtube_cookie_count"],
+            "auth_cookie_count": result["auth_cookie_count"],
+            "message": "The cookies file has YouTube cookies but does not look like a signed-in export.",
+        }
+
+    return {
+        "ok": False,
+        "path": cookiefile,
+        "cookie_count": result["cookie_count"],
+        "youtube_cookie_count": 0,
+        "auth_cookie_count": result["auth_cookie_count"],
+        "message": "The cookies file does not contain YouTube or Google cookies.",
+    }
 
 
 def _read_batches(discovery_dir: Path) -> list[dict[str, Any]]:
@@ -529,6 +622,54 @@ def _best_source(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not candidates:
         return None
     return max(candidates, key=lambda candidate: int(candidate.get("confidence") or 0))
+
+
+def resolve_youtube_cookiefile(settings: AppSettings | None = None, require: bool = False) -> str | None:
+    current = settings or load_settings()
+    cookiefile = str(current.youtube_cookies_path or "").strip()
+    if not cookiefile:
+        if require:
+            raise DownloadServiceError("Choose an exported YouTube cookies file first.")
+        return None
+
+    path = Path(cookiefile).expanduser()
+    if not path.exists():
+        raise DownloadServiceError("YouTube cookies file was not found.")
+    if not path.is_file():
+        raise DownloadServiceError("YouTube cookies path must point to a file.")
+    return str(path)
+
+
+def prepare_youtube_cookiefile(settings: AppSettings | None = None, require: bool = False) -> str | None:
+    source = resolve_youtube_cookiefile(settings, require=require)
+    if not source:
+        return None
+
+    current = settings or load_settings()
+    runtime_dir = resolve_data_dir(current) / "temp"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    runtime_path = runtime_dir / "youtube_cookies.txt"
+    shutil.copyfile(source, runtime_path)
+    return str(runtime_path)
+
+
+def _inspect_cookiefile(cookiefile: str) -> dict[str, Any]:
+    jar = http.cookiejar.MozillaCookieJar(cookiefile)
+    jar.load(ignore_discard=True, ignore_expires=True)
+    cookies = list(jar)
+
+    youtube_cookie_count = sum(1 for cookie in cookies if _is_youtube_cookie(cookie.domain))
+    auth_cookie_count = sum(1 for cookie in cookies if cookie.name in YOUTUBE_AUTH_COOKIE_NAMES)
+    return {
+        "cookie_count": len(cookies),
+        "youtube_cookie_count": youtube_cookie_count,
+        "auth_cookie_count": auth_cookie_count,
+    }
+
+
+def _is_youtube_cookie(domain: str) -> bool:
+    value = str(domain or "").lower()
+    return "youtube.com" in value or "google.com" in value
 
 
 def _source_id_kind(row: dict[str, Any]) -> str:

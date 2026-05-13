@@ -47,7 +47,8 @@ def download_audio(
     fmt: str = DEFAULT_AUDIO_FORMAT,
     quality: str = DEFAULT_AUDIO_QUALITY,
     quiet: bool = True,
-    metadata: dict = None
+    metadata: dict = None,
+    cookiefile: str | None = None,
 ) -> bool:
     """
     Search YouTube for *query* and download audio as a temporary file first.
@@ -63,6 +64,7 @@ def download_audio(
         quiet=quiet,
         metadata=metadata,
         default_search="ytsearch1",
+        cookiefile=cookiefile,
     )
 
 
@@ -73,6 +75,7 @@ def download_audio_from_url(
     quality: str = DEFAULT_AUDIO_QUALITY,
     quiet: bool = True,
     metadata: dict = None,
+    cookiefile: str | None = None,
 ) -> bool:
     """Download a specific source URL instead of searching for the top result."""
     return _download_audio_source(
@@ -83,6 +86,7 @@ def download_audio_from_url(
         quiet=quiet,
         metadata=metadata,
         default_search=None,
+        cookiefile=cookiefile,
     )
 
 
@@ -94,6 +98,7 @@ def _download_audio_source(
     quiet: bool = True,
     metadata: dict = None,
     default_search: str | None = "ytsearch1",
+    cookiefile: str | None = None,
 ) -> bool:
     if yt_dlp is None:
         log.error("yt-dlp not found. Please install it via pip install yt-dlp")
@@ -126,12 +131,14 @@ def _download_audio_source(
     }
     if default_search:
         ydl_opts["default_search"] = default_search
+    if cookiefile:
+        ydl_opts["cookiefile"] = cookiefile
 
     try:
         # 2. Download into temp staging
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([source])
-        
+
         if not temp_path.exists():
             log.error("Download failed: temp file not found at %s", temp_path)
             return False
@@ -139,11 +146,11 @@ def _download_audio_source(
         # 3. Apply metadata tagging while still in temp
         if metadata:
             _apply_metadata(temp_path, metadata)
-            
+
         # 4. Atomic move to final destination
         output_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path.replace(output_path)
-            
+
         return True
     except yt_dlp.utils.DownloadError as exc:
         log.error("yt-dlp download failed for source '%s': %s", source, exc)
