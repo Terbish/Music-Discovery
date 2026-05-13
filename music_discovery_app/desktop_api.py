@@ -5,6 +5,16 @@ from shutil import copyfile
 from typing import Any
 
 from music_discovery_app.dashboard import read_dashboard_data
+from music_discovery_app.discovery_service import DiscoveryServiceError, create_daily_discovery
+from music_discovery_app.download_service import (
+    DownloadServiceError,
+    create_library_download_queue,
+    download_best_sources,
+    download_selected_source,
+    read_download_queue,
+    search_queue_sources,
+    search_youtube_sources,
+)
 from music_discovery_app.genre_service import GenreEnrichmentError, enrich_library, is_enriched_csv
 from music_discovery_app.library_service import LibraryProcessingError, process_library
 from music_discovery_app.settings import load_settings, resolve_data_dir, save_settings
@@ -13,6 +23,66 @@ from music_discovery_app.settings import load_settings, resolve_data_dir, save_s
 class DesktopApi:
     def get_dashboard_data(self) -> dict[str, Any]:
         return _ok(read_dashboard_data())
+
+    def get_download_queue(self) -> dict[str, Any]:
+        return _ok(read_download_queue())
+
+    def create_daily_discovery(self) -> dict[str, Any]:
+        try:
+            result = create_daily_discovery(
+                progress_callback=lambda event: self._emit_progress("daily_discovery", event),
+            )
+            return _ok(result)
+        except DiscoveryServiceError as exc:
+            return _error(str(exc))
+
+    def add_library_to_download_queue(self) -> dict[str, Any]:
+        try:
+            return _ok(create_library_download_queue())
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def search_download_sources(self, track: dict[str, Any], limit: int = 8) -> dict[str, Any]:
+        try:
+            return _ok(search_youtube_sources(track, limit))
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def search_download_queue_sources(self, tracks: list[dict[str, Any]], limit: int = 8) -> dict[str, Any]:
+        try:
+            return _ok(
+                search_queue_sources(
+                    tracks,
+                    limit,
+                    progress_callback=lambda event: self._emit_progress("source_search", event),
+                )
+            )
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def download_best_sources(self, tracks: list[dict[str, Any]], limit: int = 8) -> dict[str, Any]:
+        try:
+            return _ok(
+                download_best_sources(
+                    tracks,
+                    limit,
+                    progress_callback=lambda event: self._emit_progress("best_source_download", event),
+                )
+            )
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def replace_downloaded_source(self, track: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return _ok(download_selected_source(track, source, replace_existing=True))
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def download_selected_source(self, track: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return _ok(download_selected_source(track, source))
+        except DownloadServiceError as exc:
+            return _error(str(exc))
 
     def get_settings(self) -> dict[str, Any]:
         return _ok(asdict(load_settings()))

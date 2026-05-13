@@ -21,8 +21,8 @@ Acceptance:
 - [x] Keep existing CLI scripts working.
 - [x] Move reusable logic from `discovery_genres.py` into a callable genre enrichment service.
 - [x] Move reusable logic from `process_library.py` into a callable library processing service.
-- [ ] Move reusable logic from `daily_discovery.py` into a callable discovery service.
-- [ ] Move reusable logic from `discovery_to_audio.py` into a callable download service.
+- [x] Move reusable logic from `daily_discovery.py` into a callable discovery service.
+- [x] Move reusable logic from `discovery_to_audio.py` into a callable download service.
 - [ ] Standardize return values as structured dictionaries/lists instead of printed output.
 - [ ] Standardize error handling with clear exception types or error result objects.
 - [ ] Add progress callbacks for long-running tasks.
@@ -54,6 +54,7 @@ Acceptance:
 - [x] Add API methods for reading dashboard data.
 - [x] Add API methods for selecting files and directories through native dialogs.
 - [ ] Add API methods for import, enrich, process, discover, and download actions.
+- [x] Add API methods for reading the download queue, searching source candidates, and downloading a selected source.
 - [x] Add API methods for reading and saving settings.
 - [ ] Add API methods for opening output folders.
 
@@ -72,7 +73,7 @@ Acceptance:
 - [x] Implement the Library view.
 - [x] Implement the Taste Profile view.
 - [ ] Implement the Daily Discovery view.
-- [ ] Implement the Downloads view.
+- [x] Implement the Downloads view.
 - [x] Implement the Settings view.
 - [x] Replace hardcoded mock data with API-backed data.
 - [ ] Preserve the current visual direction unless intentionally changed.
@@ -107,9 +108,9 @@ Acceptance:
 - [x] Enrich imported tracks with genre metadata.
 - [x] Generate a taste profile from the enriched library.
 - [ ] Display top genres, artists, library counts, and recent activity.
-- [ ] Generate a daily discovery batch.
+- [x] Generate a daily discovery batch.
 - [ ] Mark tracks as new, skipped, already in library, or downloaded.
-- [ ] Download one recommended track.
+- [x] Download one recommended track.
 - [ ] Download an entire discovery batch.
 - [ ] Write metadata tags to downloaded audio files.
 - [ ] Open the download output folder from the app.

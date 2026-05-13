@@ -77,6 +77,8 @@ def _library_summary(
                 "index": index,
                 "title": track.get("title", ""),
                 "artist": track.get("artist", ""),
+                "album": track.get("album", ""),
+                "added_date": track.get("added_date", ""),
                 "genres": genres,
                 "genre_text": ", ".join(genres),
                 "track_id": track.get("track_id", ""),
@@ -129,12 +131,14 @@ def _read_discovery_batches(discovery_dir: Path) -> list[dict[str, Any]]:
         return []
 
     batches = []
-    for csv_path in sorted(discovery_dir.glob("discovery_*.csv"), key=lambda path: path.stat().st_mtime, reverse=True):
-        date_value = csv_path.stem.replace("discovery_", "")
+    csv_paths = list(discovery_dir.glob("discovery_*.csv")) + list(discovery_dir.glob("queue_*.csv"))
+    for csv_path in sorted(csv_paths, key=lambda path: path.stat().st_mtime, reverse=True):
+        date_value = csv_path.stem.replace("discovery_", "").replace("queue_", "")
         audio_folder = discovery_dir / date_value
         batches.append(
             {
                 "date": date_value,
+                "kind": "Discovery" if csv_path.name.startswith("discovery_") else "Queue",
                 "path": str(csv_path),
                 "track_count": _count_csv_rows(csv_path),
                 "audio_folder_exists": audio_folder.exists(),

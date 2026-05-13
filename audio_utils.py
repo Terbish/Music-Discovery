@@ -55,6 +55,46 @@ def download_audio(
     Once finished, moves the final file to *output_path*.
     This ensures that folders watched by Music.app/iTunes don't see incomplete files.
     """
+    return _download_audio_source(
+        query,
+        output_path,
+        fmt=fmt,
+        quality=quality,
+        quiet=quiet,
+        metadata=metadata,
+        default_search="ytsearch1",
+    )
+
+
+def download_audio_from_url(
+    url: str,
+    output_path: Path,
+    fmt: str = DEFAULT_AUDIO_FORMAT,
+    quality: str = DEFAULT_AUDIO_QUALITY,
+    quiet: bool = True,
+    metadata: dict = None,
+) -> bool:
+    """Download a specific source URL instead of searching for the top result."""
+    return _download_audio_source(
+        url,
+        output_path,
+        fmt=fmt,
+        quality=quality,
+        quiet=quiet,
+        metadata=metadata,
+        default_search=None,
+    )
+
+
+def _download_audio_source(
+    source: str,
+    output_path: Path,
+    fmt: str = DEFAULT_AUDIO_FORMAT,
+    quality: str = DEFAULT_AUDIO_QUALITY,
+    quiet: bool = True,
+    metadata: dict = None,
+    default_search: str | None = "ytsearch1",
+) -> bool:
     if yt_dlp is None:
         log.error("yt-dlp not found. Please install it via pip install yt-dlp")
         return False
@@ -81,15 +121,16 @@ def download_audio(
                 "preferredquality": quality,
             }
         ],
-        "default_search": "ytsearch1",   # pick the top YouTube result
         "nooverwrites": True,
         "ffmpeg_location": FFMPEG_EXE,
     }
+    if default_search:
+        ydl_opts["default_search"] = default_search
 
     try:
         # 2. Download into temp staging
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([query])
+            ydl.download([source])
         
         if not temp_path.exists():
             log.error("Download failed: temp file not found at %s", temp_path)
@@ -105,7 +146,7 @@ def download_audio(
             
         return True
     except yt_dlp.utils.DownloadError as exc:
-        log.error("yt-dlp download failed for query '%s': %s", query, exc)
+        log.error("yt-dlp download failed for source '%s': %s", source, exc)
         return False
     except FileNotFoundError:
         log.error("ffmpeg not found on PATH. Please install ffmpeg to enable audio conversion.")

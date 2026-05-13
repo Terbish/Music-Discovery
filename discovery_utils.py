@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
-# Maps track_id -> {"title": ..., "artist": ...}
+# Maps track_id -> {"title": ..., "artist": ..., "album": ..., "added_date": ...}
 CsvMetadata = Dict[str, Dict[str, str]]
 
 def parse_csv(csv_path: str) -> Tuple[List[str], CsvMetadata]:
@@ -18,6 +18,7 @@ def parse_csv(csv_path: str) -> Tuple[List[str], CsvMetadata]:
       'Spotify - id'  →  track ID
       'Track name'    →  song title
       'Artist name'   →  artist
+      'Date added'    →  added date when available
     """
     path = Path(csv_path)
     if not path.exists():
@@ -43,6 +44,7 @@ def parse_csv(csv_path: str) -> Tuple[List[str], CsvMetadata]:
         title_col  = find_col("track")
         artist_col = find_col("artist")
         album_col  = find_col("album")
+        added_col = find_col("date", "added") or find_col("added", "at") or find_col("added")
 
         if id_col is None:
             sys.exit(
@@ -60,6 +62,7 @@ def parse_csv(csv_path: str) -> Tuple[List[str], CsvMetadata]:
                 "title":  row[title_col].strip()  if title_col  else "",
                 "artist": row[artist_col].strip() if artist_col else "",
                 "album":  row[album_col].strip()  if album_col  else "",
+                "added_date": row[added_col].strip() if added_col else "",
             }
 
     return ids, metadata

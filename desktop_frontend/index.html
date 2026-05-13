@@ -20,7 +20,7 @@
           <button class="nav-item active" type="button" data-view-target="dashboard">Dashboard</button>
           <button class="nav-item" type="button" data-view-target="library">Library</button>
           <button class="nav-item" type="button" data-view-target="taste">Taste Profile</button>
-          <button class="nav-item" type="button" disabled>Downloads</button>
+          <button class="nav-item" type="button" data-view-target="downloads">Downloads</button>
           <button class="nav-item" type="button" data-view-target="settings">Settings</button>
         </nav>
         <div class="sidebar-footer">
@@ -37,6 +37,7 @@
             </div>
             <div class="actions">
               <button id="choose-library" class="button secondary" type="button">Choose CSV</button>
+              <button id="create-discovery" class="button secondary" type="button">Create Daily Discovery</button>
               <button id="process-library" class="button primary" type="button">Process Library</button>
             </div>
           </header>
@@ -131,6 +132,7 @@
                 <option value="title">Title</option>
                 <option value="artist">Artist</option>
                 <option value="genre">Genre</option>
+                <option value="added_date">Added date</option>
               </select>
 
               <div class="library-filter-stats">
@@ -157,6 +159,7 @@
                     <span role="columnheader">Title</span>
                     <span role="columnheader">Artist</span>
                     <span role="columnheader">Genres</span>
+                    <span role="columnheader">Added</span>
                     <span role="columnheader">Track ID</span>
                   </div>
                   <div id="library-tracks" class="library-table-body empty">No processed tracks found.</div>
@@ -233,6 +236,98 @@
               <h2 id="profile-explorer-title">Genre Explorer</h2>
             </div>
             <div id="profile-genre-explorer" class="genre-explorer empty">No genre samples found.</div>
+          </section>
+        </section>
+
+        <section id="view-downloads" class="view" data-view="downloads">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Source review</p>
+              <h1>Downloads</h1>
+            </div>
+            <div class="actions">
+              <button id="refresh-downloads" class="button secondary" type="button">Refresh</button>
+              <button id="create-discovery-downloads" class="button secondary" type="button">Create Daily Discovery</button>
+              <button id="add-library-queue" class="button secondary" type="button">Add Library to Queue</button>
+              <button id="search-download-sources" class="button primary" type="button">Find Sources</button>
+              <button id="download-best-sources" class="button primary" type="button">Download Best Sources</button>
+            </div>
+          </header>
+
+          <section id="downloads-status" class="status-line" aria-live="polite">Downloads not loaded.</section>
+
+          <section class="download-layout" aria-label="Download queue">
+            <aside class="download-controls" aria-label="Download source preferences">
+              <div class="library-filter-header">
+                <span>03</span>
+                <h2>Source Rules</h2>
+              </div>
+
+              <label class="field-label" for="download-track-filter">Queue</label>
+              <select id="download-track-filter" class="input">
+                <option value="needs_source">Needs source</option>
+                <option value="all">All tracks</option>
+                <option value="downloaded">Downloaded</option>
+              </select>
+
+              <label class="field-label" for="download-source-mode">Preferred source</label>
+              <select id="download-source-mode" class="input">
+                <option value="official_audio">Official audio</option>
+                <option value="studio">Any studio version</option>
+                <option value="music_video">Music video</option>
+                <option value="ask">Ask every time</option>
+              </select>
+
+              <div class="download-checks" aria-label="Source filters">
+                <label><input id="avoid-live" type="checkbox" checked /> Avoid live versions</label>
+                <label><input id="avoid-covers" type="checkbox" checked /> Avoid covers</label>
+                <label><input id="avoid-remixes" type="checkbox" checked /> Avoid remixes</label>
+                <label><input id="allow-radio-edits" type="checkbox" /> Allow radio edits</label>
+              </div>
+
+              <div class="library-filter-stats">
+                <div>
+                  <span>Queued</span>
+                  <strong id="download-queue-count">0</strong>
+                </div>
+                <div>
+                  <span>Done</span>
+                  <strong id="download-ready-count">0</strong>
+                </div>
+              </div>
+            </aside>
+
+            <section class="download-workspace" aria-labelledby="download-queue-title">
+              <div class="panel-header">
+                <h2 id="download-queue-title">Queue</h2>
+                <span id="download-active-batch">No discovery batch found.</span>
+              </div>
+
+              <div class="download-split">
+                <div class="download-queue-panel">
+                  <div class="download-table" role="table" aria-label="Tracks waiting for sources">
+                    <div class="download-row download-row-head" role="row">
+                      <span role="columnheader">No.</span>
+                      <span role="columnheader">Track</span>
+                      <span role="columnheader">Artist</span>
+                      <span role="columnheader">Status</span>
+                    </div>
+                    <div id="download-tracks" class="download-table-body empty">No discovery tracks found.</div>
+                  </div>
+                </div>
+
+                <section class="source-panel" aria-labelledby="source-panel-title">
+                  <div class="source-panel-header">
+                    <div>
+                      <h2 id="source-panel-title">Sources</h2>
+                      <span id="selected-download-track">Select a track.</span>
+                    </div>
+                    <button id="download-selected-source" class="button primary" type="button" disabled>Download Selected</button>
+                  </div>
+                  <div id="source-candidates" class="source-list empty">Find sources to compare YouTube results before downloading.</div>
+                </section>
+              </div>
+            </section>
           </section>
         </section>
 
@@ -400,6 +495,7 @@
         </section>
       </main>
     </div>
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
 
     <script src="./app.js"></script>
   </body>

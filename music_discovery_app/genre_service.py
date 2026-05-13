@@ -12,6 +12,7 @@ from discovery_utils import parse_csv
 
 DEFAULT_USER_AGENT = "MusicLibraryEnricher/1.0 (contact@example.com)"
 ENRICHED_COLUMNS = {"title", "artist", "Genres", "Spotify ID"}
+ENRICHED_FIELDNAMES = ["title", "artist", "album", "added_date", "Genres", "Spotify ID"]
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 log = logging.getLogger(__name__)
@@ -74,6 +75,8 @@ def enrich_library(
             {
                 "title": raw_title,
                 "artist": raw_artist,
+                "album": track.get("album", ""),
+                "added_date": track.get("added_date", ""),
                 "Genres": ", ".join(genres) if genres else "Unknown",
                 "Spotify ID": track_id,
             }
@@ -88,7 +91,7 @@ def enrich_library(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["title", "artist", "Genres", "Spotify ID"])
+        writer = csv.DictWriter(f, fieldnames=ENRICHED_FIELDNAMES)
         writer.writeheader()
         writer.writerows(enriched_data)
 
@@ -209,4 +212,3 @@ def _resolve_output_path(input_path: Path, output_path: Path) -> Path:
 def _emit(progress_callback: ProgressCallback | None, event: str, **payload: Any) -> None:
     if progress_callback:
         progress_callback({"event": event, **payload})
-

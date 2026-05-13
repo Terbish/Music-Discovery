@@ -41,11 +41,15 @@ def process_library(
         artist = row["artist"].strip()
         genre_str = row["Genres"].strip()
         service_id = row["Spotify ID"].strip()
+        album = row.get("album", "").strip()
+        added_date = row.get("added_date", "").strip()
         genres = [g.strip() for g in genre_str.split(",") if g.strip()] if genre_str and genre_str != "Unknown" else []
 
         track_info = {
             "title": title,
             "artist": artist,
+            "album": album,
+            "added_date": added_date,
             "genres": genres,
             "track_id": service_id,
         }
@@ -79,6 +83,7 @@ def process_library(
     personal_library = {
         "genres": genre_to_tracks,
         "all_tracks": all_tracks,
+        "download_sources": _read_existing_download_sources(library_path),
     }
 
     taste_path = Path(taste_profile_json)
@@ -115,7 +120,17 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         json.dump(payload, f, indent=4, ensure_ascii=False)
 
 
+def _read_existing_download_sources(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            existing = json.load(f)
+        return existing.get("download_sources", {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def _emit(progress_callback: ProgressCallback | None, event: str, **payload: Any) -> None:
     if progress_callback:
         progress_callback({"event": event, **payload})
-
