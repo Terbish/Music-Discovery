@@ -43,7 +43,7 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Settings persist across app launches.
+- [x] Settings persist across app launches.
 - [ ] The app can locate existing local data and create missing directories.
 
 ## 4. Build Desktop Bridge
@@ -69,11 +69,11 @@ Acceptance:
 - [ ] Convert `ui-mock.html` styles into maintainable CSS modules or app-level CSS.
 - [ ] Split the UI into reusable components: title bar, sidebar, page header, cards, tables, toggles, buttons, progress bars.
 - [x] Implement the Dashboard view.
-- [ ] Implement the Library view.
-- [ ] Implement the Taste Profile view.
+- [x] Implement the Library view.
+- [x] Implement the Taste Profile view.
 - [ ] Implement the Daily Discovery view.
 - [ ] Implement the Downloads view.
-- [ ] Implement the Settings view.
+- [x] Implement the Settings view.
 - [x] Replace hardcoded mock data with API-backed data.
 - [ ] Preserve the current visual direction unless intentionally changed.
 

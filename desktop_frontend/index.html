@@ -17,11 +17,11 @@
           </div>
         </div>
         <nav class="nav-list">
-          <button class="nav-item active" type="button">Dashboard</button>
-          <button class="nav-item" type="button" disabled>Library</button>
-          <button class="nav-item" type="button" disabled>Taste Profile</button>
+          <button class="nav-item active" type="button" data-view-target="dashboard">Dashboard</button>
+          <button class="nav-item" type="button" data-view-target="library">Library</button>
+          <button class="nav-item" type="button" data-view-target="taste">Taste Profile</button>
           <button class="nav-item" type="button" disabled>Downloads</button>
-          <button class="nav-item" type="button" disabled>Settings</button>
+          <button class="nav-item" type="button" data-view-target="settings">Settings</button>
         </nav>
         <div class="sidebar-footer">
           <span>v0.1.0</span>
@@ -29,70 +29,374 @@
       </aside>
 
       <main class="content">
-        <header class="page-header">
-          <div>
-            <p class="eyebrow">Desktop milestone</p>
-            <h1>Dashboard</h1>
-          </div>
-          <div class="actions">
-            <button id="choose-library" class="button secondary" type="button">Choose CSV</button>
-            <button id="process-library" class="button primary" type="button">Process Library</button>
-          </div>
-        </header>
+        <section id="view-dashboard" class="view active" data-view="dashboard">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Desktop milestone</p>
+              <h1>Dashboard</h1>
+            </div>
+            <div class="actions">
+              <button id="choose-library" class="button secondary" type="button">Choose CSV</button>
+              <button id="process-library" class="button primary" type="button">Process Library</button>
+            </div>
+          </header>
 
-        <section id="status" class="status-line" aria-live="polite">Loading dashboard data.</section>
+          <section id="status" class="status-line" aria-live="polite">Loading dashboard data.</section>
 
-        <section class="stat-grid" aria-label="Library summary">
-          <article class="stat-cell">
-            <span>Library Size</span>
-            <strong id="library-size">0</strong>
-          </article>
-          <article class="stat-cell">
-            <span>Top Genre</span>
-            <strong id="top-genre">Not available</strong>
-          </article>
-          <article class="stat-cell">
-            <span>Artists</span>
-            <strong id="artist-count">0</strong>
-          </article>
-          <article class="stat-cell">
-            <span>Pending Downloads</span>
-            <strong id="pending-downloads">0</strong>
-          </article>
+          <section class="stat-grid" aria-label="Library summary">
+            <article class="stat-cell">
+              <span>Library Size</span>
+              <strong id="library-size">0</strong>
+            </article>
+            <article class="stat-cell">
+              <span>Top Genre</span>
+              <strong id="top-genre">Not available</strong>
+            </article>
+            <article class="stat-cell">
+              <span>Artists</span>
+              <strong id="artist-count">0</strong>
+            </article>
+            <article class="stat-cell">
+              <span>Pending Downloads</span>
+              <strong id="pending-downloads">0</strong>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-header">
+                <h2>Top Genres</h2>
+                <span id="genre-count">0 genres</span>
+              </div>
+              <div id="top-genres" class="bar-list empty">No taste profile found.</div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h2>Top Artists</h2>
+                <span id="artist-total">0 artists</span>
+              </div>
+              <div id="top-artists" class="bar-list empty">No artist data found.</div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-header">
+                <h2>Recent Activity</h2>
+                <span id="data-dir"></span>
+              </div>
+              <div id="recent-activity" class="activity-list empty">No generated files found.</div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h2>Discovery Batches</h2>
+                <span id="batch-count">0 batches</span>
+              </div>
+              <div id="discovery-batches" class="activity-list empty">No discovery CSV files found.</div>
+            </article>
+          </section>
         </section>
 
-        <section class="dashboard-grid">
-          <article class="panel">
-            <div class="panel-header">
-              <h2>Top Genres</h2>
-              <span id="genre-count">0 genres</span>
+        <section id="view-library" class="view" data-view="library">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Catalog</p>
+              <h1>Library</h1>
             </div>
-            <div id="top-genres" class="bar-list empty">No taste profile found.</div>
-          </article>
+            <div class="actions">
+              <button id="refresh-library" class="button secondary" type="button">Refresh</button>
+              <button id="process-library-view" class="button primary" type="button">Process Library</button>
+            </div>
+          </header>
 
-          <article class="panel">
-            <div class="panel-header">
-              <h2>Top Artists</h2>
-              <span id="artist-total">0 artists</span>
-            </div>
-            <div id="top-artists" class="bar-list empty">No artist data found.</div>
-          </article>
+          <section id="library-status" class="status-line" aria-live="polite">Library not loaded.</section>
 
-          <article class="panel wide">
-            <div class="panel-header">
-              <h2>Recent Activity</h2>
-              <span id="data-dir"></span>
-            </div>
-            <div id="recent-activity" class="activity-list empty">No generated files found.</div>
-          </article>
+          <section class="library-layout" aria-label="Library browser">
+            <aside class="library-filter" aria-label="Library filters">
+              <div class="library-filter-header">
+                <span>01</span>
+                <h2>Filter</h2>
+              </div>
+              <label class="field-label" for="library-search">Search</label>
+              <input id="library-search" class="input" type="search" autocomplete="off" placeholder="Title or artist" />
 
-          <article class="panel">
-            <div class="panel-header">
-              <h2>Discovery Batches</h2>
-              <span id="batch-count">0 batches</span>
+              <label class="field-label" for="library-genre-filter">Genre</label>
+              <select id="library-genre-filter" class="input">
+                <option value="">All genres</option>
+              </select>
+
+              <label class="field-label" for="library-sort">Sort</label>
+              <select id="library-sort" class="input">
+                <option value="index">Import order</option>
+                <option value="title">Title</option>
+                <option value="artist">Artist</option>
+                <option value="genre">Genre</option>
+              </select>
+
+              <div class="library-filter-stats">
+                <div>
+                  <span>Showing</span>
+                  <strong id="library-visible-count">0</strong>
+                </div>
+                <div>
+                  <span>Total</span>
+                  <strong id="library-total-count">0</strong>
+                </div>
+              </div>
+            </aside>
+
+            <section class="library-table-panel" aria-labelledby="library-table-title">
+              <div class="panel-header">
+                <h2 id="library-table-title">Tracks</h2>
+                <span id="library-source-path">No library file found.</span>
+              </div>
+              <div class="library-table-wrap">
+                <div class="library-table" role="table" aria-label="Processed tracks">
+                  <div class="library-row library-row-head" role="row">
+                    <span role="columnheader">No.</span>
+                    <span role="columnheader">Title</span>
+                    <span role="columnheader">Artist</span>
+                    <span role="columnheader">Genres</span>
+                    <span role="columnheader">Track ID</span>
+                  </div>
+                  <div id="library-tracks" class="library-table-body empty">No processed tracks found.</div>
+                </div>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="view-taste" class="view" data-view="taste">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Taste profile</p>
+              <h1>Taste Profile</h1>
             </div>
-            <div id="discovery-batches" class="activity-list empty">No discovery CSV files found.</div>
-          </article>
+            <div class="actions">
+              <button id="refresh-taste-profile" class="button secondary" type="button">Refresh</button>
+              <button id="process-profile-library" class="button primary" type="button">Process Library</button>
+            </div>
+          </header>
+
+          <section id="taste-status" class="status-line" aria-live="polite">Taste profile not loaded.</section>
+
+          <section class="profile-layout" aria-label="Taste profile summary">
+            <article class="profile-index">
+              <span>Tracks</span>
+              <strong id="profile-track-count">0</strong>
+              <div class="profile-index-grid">
+                <div>
+                  <span>Genres</span>
+                  <strong id="profile-genre-count">0</strong>
+                </div>
+                <div>
+                  <span>Artists</span>
+                  <strong id="profile-artist-count">0</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="profile-lead">
+              <div>
+                <span>Top genre</span>
+                <strong id="profile-top-genre">Not available</strong>
+              </div>
+              <div>
+                <span>Library share</span>
+                <strong id="profile-top-genre-share">0%</strong>
+              </div>
+              <p id="profile-source-path">No taste profile file found.</p>
+            </article>
+          </section>
+
+          <section class="taste-grid" aria-label="Taste profile charts">
+            <article class="panel wide">
+              <div class="panel-header">
+                <h2>Genre Distribution</h2>
+                <span id="profile-genre-total">0 genres</span>
+              </div>
+              <div id="profile-genres" class="profile-bar-list empty">No genre data found.</div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h2>Top Artists</h2>
+                <span id="profile-artist-total">0 artists</span>
+              </div>
+              <div id="profile-artists" class="profile-bar-list empty">No artist data found.</div>
+            </article>
+          </section>
+
+          <section class="profile-explorer-wrap" aria-labelledby="profile-explorer-title">
+            <div class="section-heading">
+              <span>05</span>
+              <h2 id="profile-explorer-title">Genre Explorer</h2>
+            </div>
+            <div id="profile-genre-explorer" class="genre-explorer empty">No genre samples found.</div>
+          </section>
+        </section>
+
+        <section id="view-settings" class="view" data-view="settings">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Preferences</p>
+              <h1>Settings</h1>
+            </div>
+            <div class="actions">
+              <button id="reset-settings" class="button secondary" type="button">Reload</button>
+              <button id="save-settings" class="button primary" type="button">Save Settings</button>
+            </div>
+          </header>
+
+          <section id="settings-status" class="status-line" aria-live="polite">Settings not loaded.</section>
+
+          <form id="settings-form" class="settings-layout">
+            <section class="settings-section" aria-labelledby="general-settings-title">
+              <div class="settings-section-title" id="general-settings-title">
+                <span>01</span>
+                <h2>General</h2>
+              </div>
+              <div class="settings-fields">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Launch at startup</h3>
+                    <p>Open Daily Discovery when you log in.</p>
+                  </div>
+                  <label class="toggle-control">
+                    <input id="launch-at-startup" type="checkbox" />
+                    <span></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Minimize to tray</h3>
+                    <p>Keep the desktop app available after the window is closed.</p>
+                  </div>
+                  <label class="toggle-control">
+                    <input id="minimize-to-tray" type="checkbox" />
+                    <span></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Daily notifications</h3>
+                    <p>Notify when a discovery batch is ready.</p>
+                  </div>
+                  <label class="toggle-control">
+                    <input id="notifications-enabled" type="checkbox" />
+                    <span></span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="path-settings-title">
+              <div class="settings-section-title" id="path-settings-title">
+                <span>02</span>
+                <h2>Paths</h2>
+              </div>
+              <div class="settings-fields">
+                <div class="setting-row stacked">
+                  <div class="setting-info">
+                    <h3>Library CSV</h3>
+                    <p>Default import path used by Process Library.</p>
+                  </div>
+                  <div class="path-input">
+                    <input id="library-path" class="input path-field" type="text" autocomplete="off" />
+                    <button id="browse-library-path" class="button secondary" type="button">Browse</button>
+                  </div>
+                </div>
+                <div class="setting-row stacked">
+                  <div class="setting-info">
+                    <h3>Discovery output</h3>
+                    <p>Directory where generated discovery CSV files are written.</p>
+                  </div>
+                  <div class="path-input">
+                    <input id="output-path" class="input path-field" type="text" autocomplete="off" />
+                    <button id="browse-output-path" class="button secondary" type="button">Browse</button>
+                  </div>
+                </div>
+                <div class="setting-row stacked">
+                  <div class="setting-info">
+                    <h3>Audio output</h3>
+                    <p>Directory where downloaded tracks are saved.</p>
+                  </div>
+                  <div class="path-input">
+                    <input id="audio-output-path" class="input path-field" type="text" autocomplete="off" />
+                    <button id="browse-audio-output-path" class="button secondary" type="button">Browse</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Use repo personal directory</h3>
+                    <p>Read and write development data in the project personal folder.</p>
+                  </div>
+                  <label class="toggle-control">
+                    <input id="use-repo-personal-dir" type="checkbox" />
+                    <span></span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="audio-settings-title">
+              <div class="settings-section-title" id="audio-settings-title">
+                <span>03</span>
+                <h2>Audio</h2>
+              </div>
+              <div class="settings-fields">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Preferred format</h3>
+                    <p>Default format for downloaded tracks.</p>
+                  </div>
+                  <select id="audio-format" class="input select-field">
+                    <option value="mp3">MP3</option>
+                    <option value="flac">FLAC</option>
+                    <option value="wav">WAV</option>
+                    <option value="m4a">M4A</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="discovery-settings-title">
+              <div class="settings-section-title" id="discovery-settings-title">
+                <span>04</span>
+                <h2>Discovery</h2>
+              </div>
+              <div class="settings-fields">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Batch size</h3>
+                    <p>Number of tracks requested for each discovery run.</p>
+                  </div>
+                  <input id="batch-size" class="input number-field" type="number" min="1" max="200" step="1" />
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="about-settings-title">
+              <div class="settings-section-title" id="about-settings-title">
+                <span>05</span>
+                <h2>About</h2>
+              </div>
+              <div class="settings-fields">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Daily Discovery Desktop</h3>
+                    <p>Version 0.1.0. Built with Python and pywebview.</p>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h3>Settings storage</h3>
+                    <p>Preferences are saved in the operating system user config directory.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </form>
         </section>
       </main>
     </div>
@@ -100,4 +404,3 @@
     <script src="./app.js"></script>
   </body>
 </html>
-

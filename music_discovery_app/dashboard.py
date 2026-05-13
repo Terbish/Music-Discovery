@@ -25,6 +25,10 @@ def read_dashboard_data(settings: AppSettings | None = None) -> dict[str, Any]:
     pending_downloads = sum(batch["track_count"] for batch in discoveries if not batch["audio_folder_exists"])
     recent_activity = _recent_activity(data_dir, discovery_dir, taste_path, library_path, discoveries)
 
+    total_tracks = int(taste.get("total_tracks") or len(library.get("all_tracks", [])))
+    genre_counts = taste.get("genre_counts", {})
+    artist_counts = taste.get("artist_counts", {})
+
     return {
         "settings": current.__dict__,
         "paths": {
@@ -34,20 +38,83 @@ def read_dashboard_data(settings: AppSettings | None = None) -> dict[str, Any]:
             "discovery_dir": str(discovery_dir),
         },
         "stats": {
-            "library_size": int(taste.get("total_tracks") or len(library.get("all_tracks", []))),
+            "library_size": total_tracks,
             "top_genre": top_genre,
-            "genre_count": len(taste.get("genre_counts", {})),
-            "artist_count": len(taste.get("artist_counts", {})),
+            "genre_count": len(genre_counts),
+            "artist_count": len(artist_counts),
             "discovery_batches": len(discoveries),
             "pending_downloads": pending_downloads,
         },
         "top_genres": taste.get("top_genres", [])[:8],
         "top_artists": taste.get("top_artists", [])[:8],
+        "library": _library_summary(library, genre_counts, artist_counts),
+        "taste_profile": {
+            "total_tracks": total_tracks,
+            "genre_count": len(genre_counts),
+            "artist_count": len(artist_counts),
+            "top_genre": top_genre,
+            "top_genres": taste.get("top_genres", [])[:20],
+            "top_artists": taste.get("top_artists", [])[:20],
+            "genre_explorer": _genre_explorer(taste, library, total_tracks),
+        },
         "discovery_batches": discoveries[:5],
         "recent_activity": recent_activity,
         "environment": environment_status(),
         "needs_setup": not taste_path.exists() or not library_path.exists(),
     }
+
+
+def _library_summary(
+    library: dict[str, Any],
+    genre_counts: dict[str, int],
+    artist_counts: dict[str, int],
+) -> dict[str, Any]:
+    tracks = []
+    for index, track in enumerate(library.get("all_tracks", []), 1):
+        genres = track.get("genres", [])
+        tracks.append(
+            {
+                "index": index,
+                "title": track.get("title", ""),
+                "artist": track.get("artist", ""),
+                "genres": genres,
+                "genre_text": ", ".join(genres),
+                "track_id": track.get("track_id", ""),
+            }
+        )
+
+    return {
+        "tracks": tracks,
+        "genres": [{"genre": genre, "count": count} for genre, count in sorted(genre_counts.items())],
+        "artists": [{"artist": artist, "count": count} for artist, count in sorted(artist_counts.items())],
+    }
+
+
+def _genre_explorer(taste: dict[str, Any], library: dict[str, Any], total_tracks: int) -> list[dict[str, Any]]:
+    genres = library.get("genres", {})
+    explorer = []
+    for row in taste.get("top_genres", [])[:20]:
+        genre = row.get("genre", "")
+        tracks = genres.get(genre, [])
+        artists = sorted({track.get("artist", "") for track in tracks if track.get("artist")})
+        sample_tracks = [
+            {
+                "title": track.get("title", ""),
+                "artist": track.get("artist", ""),
+            }
+            for track in tracks[:3]
+        ]
+        count = int(row.get("count") or 0)
+        explorer.append(
+            {
+                "genre": genre,
+                "count": count,
+                "percentage": round((count / total_tracks) * 100, 1) if total_tracks else 0,
+                "artist_count": len(artists),
+                "sample_tracks": sample_tracks,
+            }
+        )
+    return explorer
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -116,4 +183,3 @@ def _recent_activity(
 
 def _format_timestamp(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
-
