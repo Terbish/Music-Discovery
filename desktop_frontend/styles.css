@@ -915,7 +915,7 @@ h2 {
 
 .source-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   border: 0;
@@ -924,10 +924,10 @@ h2 {
 
 .source-panel-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
-  min-height: 68px;
+  gap: 10px;
+  min-height: 0;
   padding: 12px 16px;
   border-bottom: 1px solid var(--ink);
 }
@@ -936,8 +936,16 @@ h2 {
   min-width: 0;
 }
 
-.source-panel-header .button {
-  justify-self: end;
+.source-panel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.source-panel-actions .button {
+  min-width: 0;
   max-width: 100%;
   white-space: normal;
 }
@@ -949,7 +957,34 @@ h2 {
   overflow: visible;
   color: var(--muted);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.manual-source-form {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--surface-muted);
+}
+
+.manual-source-form .field-label {
+  margin-top: 0;
+}
+
+.manual-source-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-source-row .input {
+  width: 100%;
 }
 
 .source-list {
@@ -1367,8 +1402,13 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .source-panel-header .button {
-    justify-self: start;
+  .source-panel-actions {
+    justify-self: stretch;
+  }
+
+  .manual-source-form,
+  .manual-source-row {
+    grid-template-columns: 1fr;
   }
 
   .source-row {

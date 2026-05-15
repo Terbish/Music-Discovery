@@ -8,9 +8,11 @@ from music_discovery_app.dashboard import read_dashboard_data
 from music_discovery_app.discovery_service import DiscoveryServiceError, create_daily_discovery
 from music_discovery_app.download_service import (
     DownloadServiceError,
+    add_manual_source,
     create_library_download_queue,
     download_best_sources,
     download_selected_source,
+    mark_track_no_sources,
     read_download_queue,
     search_queue_sources,
     search_youtube_sources,
@@ -70,6 +72,18 @@ class DesktopApi:
                     progress_callback=lambda event: self._emit_progress("best_source_download", event),
                 )
             )
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def add_manual_source(self, track: dict[str, Any], url: str) -> dict[str, Any]:
+        try:
+            return _ok(add_manual_source(track, url))
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def mark_track_no_sources(self, track: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return _ok(mark_track_no_sources(track))
         except DownloadServiceError as exc:
             return _error(str(exc))
 

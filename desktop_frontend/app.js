@@ -9,6 +9,7 @@ let selectedDownloadSourceId = null;
 let sourceCandidates = [];
 let sourceCandidatesByTrack = {};
 let selectedSourceByTrack = {};
+let manualSourceTrackId = null;
 let settingsDirty = false;
 let toastTimer = null;
 
@@ -72,6 +73,10 @@ const elements = {
   downloadTracks: document.querySelector("#download-tracks"),
   selectedDownloadTrack: document.querySelector("#selected-download-track"),
   sourceCandidates: document.querySelector("#source-candidates"),
+  markNoSources: document.querySelector("#mark-no-sources"),
+  manualSourceForm: document.querySelector("#manual-source-form"),
+  manualSourceUrl: document.querySelector("#manual-source-url"),
+  addManualSource: document.querySelector("#add-manual-source"),
   downloadSelectedSource: document.querySelector("#download-selected-source"),
   navItems: document.querySelectorAll("[data-view-target]"),
   views: document.querySelectorAll("[data-view]"),
@@ -126,6 +131,8 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.avoidCovers.addEventListener("change", renderSourceCandidates);
   elements.avoidRemixes.addEventListener("change", renderSourceCandidates);
   elements.allowRadioEdits.addEventListener("change", renderSourceCandidates);
+  elements.markNoSources.addEventListener("click", markNoSources);
+  elements.manualSourceForm.addEventListener("submit", addManualSource);
   elements.downloadSelectedSource.addEventListener("click", downloadSelectedSource);
   elements.saveSettings.addEventListener("click", saveSettings);
   elements.resetSettings.addEventListener("click", loadSettings);
@@ -532,16 +539,7 @@ function renderDownloadQueue(data) {
 }
 
 function renderDownloads() {
-  const filter = elements.downloadTrackFilter.value;
-  const rows = downloadTracks.filter((track) => {
-    if (filter === "all") {
-      return true;
-    }
-    if (filter === "needs_source") {
-      return track.status === "needs_source" || track.status === "sources_found" || track.status === "source_error";
-    }
-    return track.status === filter;
-  });
+  const rows = getFilteredDownloadTracks();
   elements.downloadTracks.classList.remove("empty");
   elements.downloadTracks.replaceChildren();
 
@@ -549,6 +547,10 @@ function renderDownloads() {
     elements.downloadTracks.classList.add("empty");
     elements.downloadTracks.textContent = downloadTracks.length ? "No tracks match the current queue filter." : "No discovery tracks found.";
     elements.selectedDownloadTrack.textContent = "Select a track.";
+    selectedDownloadTrackId = null;
+    selectedDownloadSourceId = null;
+    sourceCandidates = [];
+    renderSourceCandidates();
     return;
   }
 
@@ -584,13 +586,13 @@ function renderDownloads() {
 }
 
 async function searchDownloadSources() {
-  const tracks = downloadTracks;
+  const tracks = getFilteredDownloadTracks().filter(trackNeedsSourceSearch);
   if (!tracks.length) {
-    setDownloadsStatus("No queued tracks found.", "error");
+    setDownloadsStatus("No tracks in the current queue filter need source search.", "error");
     return;
   }
 
-  setDownloadsStatus(`Searching sources for ${formatNumber(tracks.length)} queued tracks.`);
+  setDownloadsStatus(`Searching sources for ${formatNumber(tracks.length)} tracks that need sources.`);
   elements.searchDownloadSources.disabled = true;
   const response = await callApi("search_download_queue_sources", tracks, 8);
   elements.searchDownloadSources.disabled = false;
@@ -613,6 +615,7 @@ async function searchDownloadSources() {
       track.candidates = candidates;
       track.selected_source_id = selectedSourceByTrack[result.track_id];
       track.source_query = result.query || "";
+      track.no_sources = {};
       if (track.status !== "downloaded") {
         track.status = candidates.length ? "sources_found" : "source_error";
       }
@@ -638,13 +641,15 @@ async function searchDownloadSources() {
 }
 
 async function downloadBestSources() {
-  const tracks = downloadTracks.map((track) => ({
-    ...track,
-    candidates: sourceCandidatesByTrack[track.id] || track.candidates || [],
-    selected_source_id: selectedSourceByTrack[track.id] || track.selected_source_id || "",
-  }));
+  const tracks = getFilteredDownloadTracks()
+    .filter((track) => track.status !== "downloaded" && track.status !== "no_sources")
+    .map((track) => ({
+      ...track,
+      candidates: sourceCandidatesByTrack[track.id] || track.candidates || [],
+      selected_source_id: selectedSourceByTrack[track.id] || track.selected_source_id || "",
+    }));
   if (!tracks.length) {
-    setDownloadsStatus("No queued tracks found.", "error");
+    setDownloadsStatus("No downloadable tracks found in the current queue filter.", "error");
     return;
   }
 
@@ -690,8 +695,10 @@ async function downloadBestSources() {
 
 function renderSourceCandidates() {
   const track = getSelectedDownloadTrack();
+  syncManualSourceInput(track);
   sourceCandidates = getSelectedSourceCandidates();
   selectedDownloadSourceId = selectedSourceByTrack[selectedDownloadTrackId] || selectedDownloadSourceId;
+  syncSourceControls(track);
   elements.downloadSelectedSource.disabled = !track || !selectedDownloadSourceId;
   elements.sourceCandidates.classList.remove("empty");
   elements.sourceCandidates.replaceChildren();
@@ -699,6 +706,12 @@ function renderSourceCandidates() {
   if (!track) {
     elements.sourceCandidates.classList.add("empty");
     elements.sourceCandidates.textContent = "Select a track.";
+    return;
+  }
+  if (track.status === "no_sources") {
+    elements.sourceCandidates.classList.add("empty");
+    elements.sourceCandidates.textContent = "Marked no sources.";
+    elements.downloadSelectedSource.disabled = true;
     return;
   }
   const downloadedSourceId = track.downloaded_source && track.downloaded_source.source_id;
@@ -744,6 +757,80 @@ function renderSourceCandidates() {
   elements.downloadSelectedSource.disabled = false;
 }
 
+async function markNoSources() {
+  const track = getSelectedDownloadTrack();
+  if (!track) {
+    setDownloadsStatus("Select a track before marking it.", "error");
+    return;
+  }
+
+  setDownloadsStatus(`Marking no sources for ${track.artist} - ${track.title}.`);
+  elements.markNoSources.disabled = true;
+  const response = await callApi("mark_track_no_sources", track);
+
+  if (!response.ok) {
+    syncSourceControls(track);
+    setDownloadsStatus(response.error, "error");
+    return;
+  }
+
+  track.status = "no_sources";
+  track.selected_source_id = "";
+  track.no_sources = { marked_at: new Date().toISOString() };
+  selectedSourceByTrack[track.id] = null;
+  selectedDownloadSourceId = null;
+  elements.downloadTrackFilter.value = "no_sources";
+  renderDownloads();
+  renderSourceCandidates();
+  setDownloadsStatus(`Marked no sources for ${track.artist} - ${track.title}.`, "success");
+}
+
+async function addManualSource(event) {
+  event.preventDefault();
+  const track = getSelectedDownloadTrack();
+  const url = elements.manualSourceUrl.value.trim();
+  if (!track) {
+    setDownloadsStatus("Select a track before adding a source link.", "error");
+    return;
+  }
+  if (!url) {
+    setDownloadsStatus("Enter a manual source link.", "error");
+    elements.manualSourceUrl.focus();
+    return;
+  }
+
+  setDownloadsStatus(`Adding manual source for ${track.artist} - ${track.title}.`);
+  elements.addManualSource.disabled = true;
+  elements.manualSourceUrl.disabled = true;
+  const response = await callApi("add_manual_source", track, url);
+  elements.manualSourceUrl.disabled = false;
+
+  if (!response.ok) {
+    syncSourceControls(track);
+    setDownloadsStatus(response.error, "error");
+    return;
+  }
+
+  const candidates = response.data.candidates || [];
+  sourceCandidatesByTrack[track.id] = candidates;
+  selectedSourceByTrack[track.id] = response.data.selected_source_id;
+  selectedDownloadSourceId = response.data.selected_source_id;
+  track.candidates = candidates;
+  track.selected_source_id = response.data.selected_source_id;
+  track.source_query = response.data.query || track.source_query || "Manual source link";
+  track.no_sources = {};
+  if (track.status !== "downloaded") {
+    track.status = "sources_found";
+  }
+  if (!trackMatchesDownloadFilter(track)) {
+    elements.downloadTrackFilter.value = track.status === "downloaded" ? "downloaded" : "needs_source";
+  }
+  elements.manualSourceUrl.value = "";
+  renderDownloads();
+  renderSourceCandidates();
+  setDownloadsStatus(`Added manual source for ${track.artist} - ${track.title}.`, "success");
+}
+
 async function downloadSelectedSource() {
   const track = getSelectedDownloadTrack();
   const candidates = getSelectedSourceCandidates();
@@ -766,6 +853,7 @@ async function downloadSelectedSource() {
   }
 
   track.status = "downloaded";
+  track.no_sources = {};
   track.output_path = response.data.path;
   if (!response.data.skipped || replacing) {
     track.downloaded_source = {
@@ -812,8 +900,52 @@ function getSelectedDownloadTrack() {
   return downloadTracks.find((track) => track.id === selectedDownloadTrackId) || null;
 }
 
+function getFilteredDownloadTracks() {
+  const filter = elements.downloadTrackFilter.value;
+  return downloadTracks.filter((track) => trackMatchesDownloadFilter(track, filter));
+}
+
+function trackMatchesDownloadFilter(track, filter = elements.downloadTrackFilter.value) {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "needs_source") {
+    return ["needs_source", "sources_found", "source_error"].includes(track.status);
+  }
+  return track.status === filter;
+}
+
+function trackNeedsSourceSearch(track) {
+  if (track.status === "downloaded" || track.status === "sources_found" || track.status === "no_sources") {
+    return false;
+  }
+  return !trackHasSources(track);
+}
+
+function trackHasSources(track) {
+  const candidates = sourceCandidatesByTrack[track.id] || track.candidates || [];
+  return candidates.length > 0;
+}
+
 function getSelectedSourceCandidates() {
   return sourceCandidatesByTrack[selectedDownloadTrackId] || [];
+}
+
+function syncSourceControls(track) {
+  const hasTrack = Boolean(track);
+  const canEditSources = hasTrack && track.status !== "downloaded";
+  elements.markNoSources.disabled = !canEditSources || track.status === "no_sources";
+  elements.manualSourceUrl.disabled = !hasTrack;
+  elements.addManualSource.disabled = !hasTrack;
+}
+
+function syncManualSourceInput(track) {
+  const trackId = track && track.id;
+  if (manualSourceTrackId === trackId) {
+    return;
+  }
+  manualSourceTrackId = trackId || null;
+  elements.manualSourceUrl.value = "";
 }
 
 function pruneSourceCache() {
@@ -828,6 +960,9 @@ function pruneSourceCache() {
 
 function sourceAllowedByPreferences(source) {
   const badges = source.badges || [];
+  if (badges.includes("Manual link")) {
+    return true;
+  }
   if (elements.avoidLive.checked && badges.includes("Live")) {
     return false;
   }
@@ -858,6 +993,7 @@ function formatTrackStatus(status) {
     needs_source: "Needs source",
     sources_found: "Sources found",
     source_error: "Source error",
+    no_sources: "No sources",
     downloaded: "Downloaded",
   };
   return labels[status] || status || "Needs source";

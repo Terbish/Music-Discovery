@@ -7,8 +7,9 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
-from audio_utils import download_audio_from_url, yt_dlp
+from audio_utils import YTDLP_SLEEP_OPTIONS, download_audio_from_url, yt_dlp
 from discovery_utils import sanitize_filename
 from music_discovery_app.settings import AppSettings, environment_status, load_settings, resolve_data_dir
 
@@ -113,6 +114,7 @@ def search_youtube_sources(
         "quiet": True,
         "no_warnings": True,
         "default_search": "ytsearch",
+        **YTDLP_SLEEP_OPTIONS,
     }
     source_cookiefile = cookiefile or prepare_youtube_cookiefile(current, require=False)
     if source_cookiefile:
@@ -250,6 +252,69 @@ def download_best_sources(
     return result
 
 
+def add_manual_source(
+    track: dict[str, Any],
+    url: str,
+    settings: AppSettings | None = None,
+) -> dict[str, Any]:
+    current = settings or load_settings()
+    source = _manual_candidate_from_url(str(url or "").strip(), track, current)
+    library_path, library = _read_personal_library(current)
+    ledger = library.setdefault("download_sources", {})
+    key = source_key_for_track(track)
+    existing = ledger.get(key, {})
+    candidates = [
+        candidate for candidate in existing.get("candidates", []) if candidate.get("id") != source["id"]
+    ]
+    candidates.insert(0, source)
+
+    record = {
+        **existing,
+        "track": _track_identity(track),
+        "query": existing.get("query", "Manual source link"),
+        "candidates": candidates,
+        "selected_source_id": source["id"],
+        "manual_source_added_at": _now_iso(),
+    }
+    record.pop("no_sources", None)
+    ledger[key] = record
+    _write_personal_library(library_path, library)
+
+    return {
+        "track_id": track.get("id", ""),
+        "source_key": key,
+        "source": source,
+        "candidates": candidates,
+        "selected_source_id": source["id"],
+        "query": record["query"],
+    }
+
+
+def mark_track_no_sources(
+    track: dict[str, Any],
+    settings: AppSettings | None = None,
+) -> dict[str, Any]:
+    library_path, library = _read_personal_library(settings)
+    ledger = library.setdefault("download_sources", {})
+    key = source_key_for_track(track)
+    existing = ledger.get(key, {})
+    ledger[key] = {
+        **existing,
+        "track": _track_identity(track),
+        "selected_source_id": "",
+        "no_sources": {
+            "marked_at": _now_iso(),
+        },
+    }
+    _write_personal_library(library_path, library)
+
+    return {
+        "track_id": track.get("id", ""),
+        "source_key": key,
+        "status": "no_sources",
+    }
+
+
 def download_selected_source(
     track: dict[str, Any],
     source: dict[str, Any],
@@ -321,6 +386,7 @@ def save_track_sources(
         "candidates": candidates,
         "selected_source_id": selected_source_id,
     }
+    ledger[key].pop("no_sources", None)
     _write_personal_library(library_path, library)
 
 
@@ -350,6 +416,7 @@ def save_downloaded_source(
             "downloaded_at": _now_iso(),
         },
     }
+    ledger[key].pop("no_sources", None)
     _write_personal_library(library_path, library)
 
 
@@ -467,21 +534,79 @@ def _read_batch_tracks(csv_path: str, settings: AppSettings) -> list[dict[str, A
             source_record = source_ledger.get(source_key, {})
             downloaded = source_record.get("downloaded", {})
             downloaded_path = downloaded.get("path", "")
+            candidates = source_record.get("candidates", [])
+            has_download = bool(
+                (output_path and output_path.exists())
+                or (downloaded_path and Path(downloaded_path).exists())
+            )
+            if has_download:
+                status = "downloaded"
+            elif source_record.get("no_sources"):
+                status = "no_sources"
+            elif candidates:
+                status = "sources_found"
+            else:
+                status = "needs_source"
             track.update(
                 {
                     "source_key": source_key,
-                    "status": "downloaded"
-                    if (output_path and output_path.exists()) or (downloaded_path and Path(downloaded_path).exists())
-                    else "needs_source",
-                    "candidates": source_record.get("candidates", []),
+                    "status": status,
+                    "candidates": candidates,
                     "source_query": source_record.get("query", ""),
                     "selected_source_id": source_record.get("selected_source_id", ""),
                     "downloaded_source": downloaded,
+                    "no_sources": source_record.get("no_sources", {}),
                 }
             )
             rows.append(track)
 
     return rows
+
+
+def _manual_candidate_from_url(url: str, track: dict[str, Any], settings: AppSettings) -> dict[str, Any]:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise DownloadServiceError("Enter a valid source link.")
+
+    info = _extract_manual_source_info(url, settings)
+    title = info.get("title") or f"{track.get('artist', '')} - {track.get('title', '')}".strip(" -")
+    uploader = info.get("uploader") or info.get("channel") or parsed.netloc
+    duration = int(info.get("duration") or 0)
+    source_id = info.get("id") or _manual_source_id(url)
+    webpage_url = info.get("webpage_url") or info.get("original_url") or url
+
+    return {
+        "rank": 0,
+        "id": source_id,
+        "title": title or "Manual source link",
+        "uploader": uploader,
+        "duration": duration,
+        "duration_text": _format_duration(duration),
+        "webpage_url": webpage_url,
+        "url": webpage_url,
+        "badges": ["Manual link"],
+        "confidence": 100,
+    }
+
+
+def _extract_manual_source_info(url: str, settings: AppSettings) -> dict[str, Any]:
+    if yt_dlp is None:
+        return {}
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        **YTDLP_SLEEP_OPTIONS,
+    }
+    cookiefile = prepare_youtube_cookiefile(settings, require=False)
+    if cookiefile:
+        opts["cookiefile"] = cookiefile
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(url, download=False) or {}
+    except Exception:
+        return {}
 
 
 def _candidate_from_entry(entry: dict[str, Any], track: dict[str, Any], index: int) -> dict[str, Any]:
@@ -596,6 +721,11 @@ def source_key_for_track(track: dict[str, Any]) -> str:
 def _track_id(title: str, artist: str, index: int) -> str:
     digest = hashlib.sha1(f"{artist}\0{title}\0{index}".encode("utf-8")).hexdigest()
     return digest[:12]
+
+
+def _manual_source_id(url: str) -> str:
+    digest = hashlib.sha1(url.encode("utf-8")).hexdigest()
+    return f"manual:{digest[:12]}"
 
 
 def _track_identity(track: dict[str, Any]) -> dict[str, str]:

@@ -268,6 +268,7 @@
                 <option value="needs_source">Needs source</option>
                 <option value="all">All tracks</option>
                 <option value="downloaded">Downloaded</option>
+                <option value="no_sources">No sources</option>
               </select>
 
               <label class="field-label" for="download-source-mode">Preferred source</label>
@@ -322,8 +323,18 @@
                       <h2 id="source-panel-title">Sources</h2>
                       <span id="selected-download-track">Select a track.</span>
                     </div>
-                    <button id="download-selected-source" class="button primary" type="button" disabled>Download Selected</button>
+                    <div class="source-panel-actions">
+                      <button id="mark-no-sources" class="button secondary" type="button" disabled>Mark No Sources</button>
+                      <button id="download-selected-source" class="button primary" type="button" disabled>Download Selected</button>
+                    </div>
                   </div>
+                  <form id="manual-source-form" class="manual-source-form">
+                    <label class="field-label" for="manual-source-url">Manual source link</label>
+                    <div class="manual-source-row">
+                      <input id="manual-source-url" class="input" type="url" placeholder="https://youtube.com/watch?v=..." autocomplete="off" />
+                      <button id="add-manual-source" class="button secondary" type="submit" disabled>Add Link</button>
+                    </div>
+                  </form>
                   <div id="source-candidates" class="source-list empty">Find sources to compare YouTube results before downloading.</div>
                 </section>
               </div>

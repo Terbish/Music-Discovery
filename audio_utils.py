@@ -38,6 +38,12 @@ FFPROBE_EXE = _get_bin_path("ffprobe")
 
 DEFAULT_AUDIO_FORMAT = "mp3"
 DEFAULT_AUDIO_QUALITY = "192"
+YTDLP_SLEEP_OPTIONS = {
+    "sleep_interval_subtitles": 5,
+    "sleep_interval_requests": 0.75,
+    "sleep_interval": 10,
+    "max_sleep_interval": 20,
+}
 
 # ── Core Downloading Logic ───────────────────────────────────────────────────
 
@@ -128,6 +134,7 @@ def _download_audio_source(
         ],
         "nooverwrites": True,
         "ffmpeg_location": FFMPEG_EXE,
+        **YTDLP_SLEEP_OPTIONS,
     }
     if default_search:
         ydl_opts["default_search"] = default_search
