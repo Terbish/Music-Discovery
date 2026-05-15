@@ -9,6 +9,7 @@ from music_discovery_app.discovery_service import DiscoveryServiceError, create_
 from music_discovery_app.download_service import (
     DownloadServiceError,
     add_manual_source,
+    clear_download_queue,
     create_library_download_queue,
     download_best_sources,
     download_selected_source,
@@ -42,6 +43,12 @@ class DesktopApi:
     def add_library_to_download_queue(self) -> dict[str, Any]:
         try:
             return _ok(create_library_download_queue())
+        except DownloadServiceError as exc:
+            return _error(str(exc))
+
+    def clear_download_queue(self) -> dict[str, Any]:
+        try:
+            return _ok(clear_download_queue())
         except DownloadServiceError as exc:
             return _error(str(exc))
 

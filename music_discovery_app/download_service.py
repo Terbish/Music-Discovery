@@ -52,6 +52,31 @@ def read_download_queue(settings: AppSettings | None = None) -> dict[str, Any]:
     }
 
 
+def clear_download_queue(settings: AppSettings | None = None) -> dict[str, Any]:
+    current = settings or load_settings()
+    discovery_dir = Path(current.output_path)
+    batches = _read_batches(discovery_dir)
+    cleared_tracks = 0
+    cleared_paths = []
+
+    discovery_root = discovery_dir.resolve()
+    for batch in batches:
+        path = Path(batch["path"]).resolve()
+        if not path.is_relative_to(discovery_root):
+            raise DownloadServiceError("Queue batch path is outside the configured output folder.")
+        if not path.exists():
+            continue
+        path.unlink()
+        cleared_tracks += int(batch.get("track_count") or 0)
+        cleared_paths.append(str(path))
+
+    return {
+        "cleared_batches": len(cleared_paths),
+        "cleared_tracks": cleared_tracks,
+        "paths": cleared_paths,
+    }
+
+
 def create_library_download_queue(settings: AppSettings | None = None) -> dict[str, Any]:
     current = settings or load_settings()
     library_path = resolve_data_dir(current) / "personal_library.json"

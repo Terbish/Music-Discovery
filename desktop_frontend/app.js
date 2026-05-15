@@ -59,6 +59,7 @@ const elements = {
   refreshDownloads: document.querySelector("#refresh-downloads"),
   createDiscoveryDownloads: document.querySelector("#create-discovery-downloads"),
   addLibraryQueue: document.querySelector("#add-library-queue"),
+  clearDownloadQueue: document.querySelector("#clear-download-queue"),
   searchDownloadSources: document.querySelector("#search-download-sources"),
   downloadBestSources: document.querySelector("#download-best-sources"),
   downloadTrackFilter: document.querySelector("#download-track-filter"),
@@ -123,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.refreshDownloads.addEventListener("click", loadDownloads);
   elements.createDiscoveryDownloads.addEventListener("click", createDailyDiscovery);
   elements.addLibraryQueue.addEventListener("click", addLibraryToDownloadQueue);
+  elements.clearDownloadQueue.addEventListener("click", clearDownloadQueue);
   elements.searchDownloadSources.addEventListener("click", searchDownloadSources);
   elements.downloadBestSources.addEventListener("click", downloadBestSources);
   elements.downloadTrackFilter.addEventListener("change", renderDownloads);
@@ -458,6 +460,38 @@ async function addLibraryToDownloadQueue() {
   selectedDownloadTrackId = null;
   setDownloadsStatus(`Added ${formatNumber(response.data.track_count)} library tracks to the download queue.`, "success");
   await loadDownloads();
+  await loadDashboard();
+}
+
+async function clearDownloadQueue() {
+  setDownloadsStatus("Clearing download queue.");
+  elements.clearDownloadQueue.disabled = true;
+  elements.searchDownloadSources.disabled = true;
+  elements.downloadBestSources.disabled = true;
+  const response = await callApi("clear_download_queue");
+  elements.clearDownloadQueue.disabled = false;
+  elements.searchDownloadSources.disabled = false;
+  elements.downloadBestSources.disabled = false;
+
+  if (!response.ok) {
+    setDownloadsStatus(response.error, "error");
+    return;
+  }
+
+  selectedDownloadTrackId = null;
+  selectedDownloadSourceId = null;
+  sourceCandidates = [];
+  sourceCandidatesByTrack = {};
+  selectedSourceByTrack = {};
+  manualSourceTrackId = null;
+  renderDownloadQueue({
+    active_batch: null,
+    tracks: [],
+  });
+  setDownloadsStatus(
+    `Cleared ${formatNumber(response.data.cleared_tracks)} queued tracks from ${formatNumber(response.data.cleared_batches)} batches.`,
+    "success",
+  );
   await loadDashboard();
 }
 
