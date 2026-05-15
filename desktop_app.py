@@ -14,13 +14,12 @@ def main() -> None:
         APP_TITLE,
         frontend_path.resolve().as_uri(),
         js_api=DesktopApi(),
-        width=1180,
+        width=1280,
         height=760,
-        min_size=(900, 600),
+        min_size=(1280, 720),
     )
     webview.start(debug=True)
 
 
 if __name__ == "__main__":
     main()
-
